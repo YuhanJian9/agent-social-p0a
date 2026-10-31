@@ -5,8 +5,14 @@ import { Shell } from "@/components/shell";
 import { readSession } from "@/lib/actor";
 import { listInbox } from "@/lib/domain";
 import { formatWhen } from "@/lib/text";
+import { authConfigured,currentUser } from "@/lib/auth/server";
+import { OwnerInbox } from "@/components/owner-inbox";
 
-export default async function InboxPage() {
+export default async function InboxPage({searchParams}:{searchParams:Promise<{message?:string}>}) {
+  if(authConfigured()) {
+    if(!await currentUser()) redirect("/auth");
+    return <OwnerInbox message={(await searchParams).message}/>;
+  }
   const session = await readSession();
   if (!session || session.agent.revokedAt) redirect("/connect");
   const t = await getTranslations("inbox");

@@ -3,16 +3,19 @@ import { authClient, currentUser } from "@/lib/auth/server";
 import { DomainError } from "@/lib/errors";
 import { buildSummaryDraft } from "@/lib/draft";
 
-function check(error: { code?: string; message?: string } | null) {
+export function checkSocialError(error: { code?: string; message?: string } | null) {
   if (!error) return;
   const message = error.message ?? "";
+  if (error.code === "28000") throw new DomainError(401,"UNAUTHORIZED","error.unauthorized");
+  if (message === "AGENT_CANNOT_DECIDE" || message === "SCOPE") throw new DomainError(403,message,message === "SCOPE" ? "error.scope" : "error.agent_cannot_decide");
   if (error.code === "42501" || message === "FORBIDDEN") throw new DomainError(403,"FORBIDDEN","error.forbidden");
   if (message === "RATE_LIMITED" || message === "COOLDOWN") throw new DomainError(429,message,message === "COOLDOWN" ? "error.cooldown" : "error.rate_limited");
   if (message === "ALREADY_DECIDED") throw new DomainError(409,"ALREADY_DECIDED","error.already_decided");
-  if (error.code === "23514" || message === "INVALID_TARGET" || message === "INVALID_DECISION") throw new DomainError(400,"INVALID","error.generic");
+  if (["23514","23502","22P02","22023"].includes(error.code ?? "") || ["INVALID_TARGET","INVALID_DECISION","INVALID_MANIFEST","INVALID_CURSOR","INVALID_TOKEN"].includes(message)) throw new DomainError(400,"INVALID","error.generic");
   // Do not put database errors or private text in logs or responses.
   throw new DomainError(503,"UNAVAILABLE","error.generic");
 }
+const check = checkSocialError;
 async function client() {
   if (!await currentUser()) throw new DomainError(401,"UNAUTHORIZED","error.unauthorized");
   return authClient();
