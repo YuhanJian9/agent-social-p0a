@@ -4,12 +4,15 @@ import { Shell } from "@/components/shell";
 import { readSession } from "@/lib/actor";
 import { listIdentities } from "@/lib/domain";
 import { messageFromSearch } from "@/lib/form";
+import { redirect } from "next/navigation";
+import { authConfigured } from "@/lib/auth/server";
 
 export default async function ConnectPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; seconds?: string }>;
 }) {
+  if (authConfigured() || process.env.NODE_ENV === "production") redirect("/auth");
   const t = await getTranslations("connect");
   const params = await searchParams;
   const errorMessage = await messageFromSearch(params);

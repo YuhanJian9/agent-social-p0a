@@ -9,4 +9,6 @@ dist
 data
 .DS_Store
 *.log
+.env*
+!.env.example
 .pnpm-store
