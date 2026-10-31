@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { authClient, currentUser } from "@/lib/auth/server";
 import { saveProfile, signOut } from "@/app/auth/actions";
 
@@ -19,6 +20,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <button className="underline">保存 / Save</button>
     </form>
     <p>Agent 接入即将开放。/ Agent connections are coming next.</p>
+    <Link href="/plaza" className="block underline">查看广场 / Open plaza</Link>
     <form action={signOut}><button className="underline">退出 / Sign out</button></form>
   </main>;
 }
