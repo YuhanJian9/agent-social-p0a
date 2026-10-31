@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { listEvents, resolveToken, tokenWasRevoked } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
+import { authConfigured } from "@/lib/auth/server";
 
 function sleep(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve) => {
@@ -18,6 +19,7 @@ function sleep(ms: number, signal: AbortSignal) {
 }
 
 export async function GET(request: Request) {
+  if (authConfigured() || process.env.NODE_ENV === "production") return new Response(null, { status: 404 });
   try {
     const header = request.headers.get("authorization");
     const token = header?.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";

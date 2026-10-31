@@ -10,6 +10,7 @@ import {
   type ActorVia,
 } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
+import { authConfigured } from "@/lib/auth/server";
 
 export type Actor = {
   owner: NonNullable<ReturnType<typeof getOwner>>;
@@ -26,6 +27,9 @@ function bearer(request: Request) {
 }
 
 export async function actorFromRequest(request: Request): Promise<Actor> {
+  if (authConfigured() || process.env.NODE_ENV === "production") {
+    throw new DomainError(401, "UNAUTHORIZED", "error.unauthorized");
+  }
   const token = bearer(request);
   if (token) {
     const resolved = resolveToken(token);
@@ -55,6 +59,7 @@ export async function actorFromRequest(request: Request): Promise<Actor> {
 }
 
 export async function readSession() {
+  if (authConfigured() || process.env.NODE_ENV === "production") return null;
   const jar = await cookies();
   const ownerId = jar.get(OWNER_COOKIE)?.value;
   if (!ownerId) return null;

@@ -5,6 +5,7 @@ import { bindOwner } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
 import { formErrorRedirect, readPayload, redirectTo } from "@/lib/form";
 import { isLocale } from "@/i18n/locale";
+import { authConfigured } from "@/lib/auth/server";
 
 const cookieBase = {
   sameSite: "lax" as const,
@@ -12,6 +13,7 @@ const cookieBase = {
 };
 
 export async function POST(request: Request) {
+  if (authConfigured() || process.env.NODE_ENV === "production") return new Response(null, { status: 404 });
   const { form, data } = await readPayload(request);
   try {
     if (typeof data.ownerId !== "string") {
