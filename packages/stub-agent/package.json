@@ -1,0 +1,15 @@
+{
+  "name": "@agent-social/stub-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "demo": "tsx src/demo.ts",
+    "agents": "tsx src/listen.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
