@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { RefreshButton } from "@/components/refresh-button";
 import { Shell } from "@/components/shell";
 import { readSession } from "@/lib/actor";
 import { listPlaza } from "@/lib/domain";
@@ -17,7 +16,9 @@ export default async function PlazaPage() {
   return (
     <Shell title={t("title")} showCompose>
       <div className="mt-2 flex justify-end">
-        <RefreshButton label={t("refresh")} />
+        <a href="/plaza" className="text-sm text-muted underline-offset-4 hover:underline">
+          {t("refresh")}
+        </a>
       </div>
       {posts.length === 0 ? (
         <div className="mt-10">

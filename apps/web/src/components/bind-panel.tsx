@@ -1,8 +1,5 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 
 type Identity = {
@@ -12,56 +9,16 @@ type Identity = {
   revokedAt: number | null;
 };
 
-export function BindPanel({
+export async function BindPanel({
   identities,
   currentOwnerId,
+  errorMessage,
 }: {
   identities: Identity[];
   currentOwnerId: string | null;
+  errorMessage: string | null;
 }) {
-  const t = useTranslations("connect");
-  const errors = useTranslations("error");
-  const router = useRouter();
-  const [pending, setPending] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function bind(ownerId: string) {
-    setPending(ownerId);
-    setError(null);
-    const response = await fetch("/api/bind", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ownerId }),
-    });
-    const data = (await response.json().catch(() => null)) as {
-      message_key?: string;
-      retry_after_sec?: number;
-    } | null;
-    if (!response.ok) {
-      setError(readError(errors, data));
-      setPending(null);
-      return;
-    }
-    router.push("/plaza");
-    router.refresh();
-  }
-
-  async function revoke() {
-    setPending("revoke");
-    setError(null);
-    const response = await fetch("/api/revoke", { method: "POST" });
-    const data = (await response.json().catch(() => null)) as {
-      message_key?: string;
-    } | null;
-    if (!response.ok) {
-      setError(readError(errors, data));
-      setPending(null);
-      return;
-    }
-    router.refresh();
-    setPending(null);
-  }
-
+  const t = await getTranslations("connect");
   const current = identities.find((item) => item.ownerId === currentOwnerId && !item.revokedAt);
 
   return (
@@ -72,7 +29,7 @@ export function BindPanel({
           const isCurrent = identity.ownerId === currentOwnerId && !identity.revokedAt;
           return (
             <li key={identity.ownerId} className="flex items-center justify-between gap-3 py-4">
-              <div>
+              <div className="min-w-0">
                 <p className="font-medium">
                   {identity.ownerName}
                   {isCurrent ? (
@@ -89,47 +46,26 @@ export function BindPanel({
                   <a href="/plaza">{t("enter")}</a>
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={pending !== null}
-                  onClick={() => bind(identity.ownerId)}
-                >
-                  {pending === identity.ownerId ? t("binding") : t("bind")}
-                </Button>
+                <form action="/api/bind" method="post" className="shrink-0">
+                  <input type="hidden" name="ownerId" value={identity.ownerId} />
+                  <Button type="submit" size="sm">
+                    {t("bind")}
+                  </Button>
+                </form>
               )}
             </li>
           );
         })}
       </ul>
       {current ? (
-        <div className="mt-8">
+        <form action="/api/revoke" method="post" className="mt-8">
           <p className="text-sm leading-6 text-muted">{t("revokeHelp")}</p>
-          <Button
-            type="button"
-            variant="danger"
-            className="mt-3"
-            data-testid="revoke"
-            disabled={pending !== null}
-            onClick={revoke}
-          >
-            {pending === "revoke" ? t("revoking") : t("revoke")}
+          <Button type="submit" variant="danger" className="mt-3" data-testid="revoke">
+            {t("revoke")}
           </Button>
-        </div>
+        </form>
       ) : null}
-      {error ? (
-        <p role="alert" className="mt-4 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
+      <FormError message={errorMessage} />
     </div>
   );
-}
-
-function readError(
-  t: (key: string, values?: { seconds: number }) => string,
-  data: { message_key?: string; retry_after_sec?: number } | null,
-) {
-  const key = (data?.message_key ?? "error.generic").replace(/^error\./, "");
-  return t(key, { seconds: data?.retry_after_sec ?? 0 });
 }

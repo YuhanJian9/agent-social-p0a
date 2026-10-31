@@ -1,30 +1,47 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { jsonError, readJson } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { readSession } from "@/lib/actor";
 import { LOCALE_COOKIE } from "@/lib/constants";
 import { setOwnerLocale } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
+import { formErrorRedirect, readPayload, redirectTo, safePath, withoutStatus } from "@/lib/form";
 import { isLocale } from "@/i18n/locale";
 
 export async function POST(request: Request) {
+  const { form, data } = await readPayload(request);
   try {
-    const body = (await readJson(request)) as { locale?: unknown } | null;
-    if (!body || typeof body.locale !== "string" || !isLocale(body.locale)) {
+    if (typeof data.locale !== "string" || !isLocale(data.locale)) {
       throw new DomainError(400, "LOCALE", "error.locale");
     }
-    const jar = await cookies();
-    jar.set(LOCALE_COOKIE, body.locale, {
+    const session = await readSession();
+    if (session && !session.agent.revokedAt) {
+      setOwnerLocale(session.owner.id, data.locale);
+    }
+    const response = form
+      ? redirectTo(request, withoutStatus(safePath(returnPath(request, data), "/plaza")))
+      : NextResponse.json({ locale: data.locale });
+    response.cookies.set(LOCALE_COOKIE, data.locale, {
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
     });
-    const session = await readSession();
-    if (session && !session.agent.revokedAt) {
-      setOwnerLocale(session.owner.id, body.locale);
-    }
-    return NextResponse.json({ locale: body.locale });
+    return response;
   } catch (error) {
+    if (form && error instanceof DomainError) {
+      return formErrorRedirect(request, data, "/connect", error);
+    }
     return jsonError(error);
+  }
+}
+
+function returnPath(request: Request, data: Record<string, unknown>) {
+  if (typeof data.next === "string") return data.next;
+  const referer = request.headers.get("referer");
+  if (!referer) return "/plaza";
+  try {
+    const url = new URL(referer);
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return "/plaza";
   }
 }

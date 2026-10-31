@@ -1,26 +1,31 @@
 import { NextResponse } from "next/server";
-import { jsonError, readJson } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { actorFromRequest } from "@/lib/actor";
 import { decideConsent } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
+import { formErrorRedirect, readPayload, redirectTo, safePath } from "@/lib/form";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { form, data } = await readPayload(request);
+  const { id } = await context.params;
   try {
     const actor = await actorFromRequest(request);
-    const { id } = await context.params;
-    const body = (await readJson(request)) as { action?: unknown; summary?: unknown } | null;
-    if (!body || (body.action !== "approve" && body.action !== "reject")) {
+    if (data.action !== "approve" && data.action !== "reject") {
       throw new DomainError(400, "EMPTY", "error.generic");
     }
     const result = decideConsent({
       consentId: id,
       actorAgentId: actor.agent.id,
       via: actor.via,
-      action: body.action,
-      summary: typeof body.summary === "string" ? body.summary : undefined,
+      action: data.action,
+      summary: typeof data.summary === "string" ? data.summary : undefined,
     });
+    if (form) return redirectTo(request, safePath(data.next, "/inbox"));
     return NextResponse.json(result);
   } catch (error) {
+    if (form && error instanceof DomainError) {
+      return formErrorRedirect(request, data, safePath(data.next, "/inbox"), error);
+    }
     return jsonError(error);
   }
 }

@@ -25,7 +25,7 @@ export async function Shell({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col bg-card text-foreground">
-      <header className="sticky top-0 z-10 border-b border-border bg-card px-4 py-3">
+      <header className="sticky top-0 z-20 border-b border-border bg-card px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
           <div className="flex items-center gap-3">

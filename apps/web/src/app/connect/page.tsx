@@ -3,9 +3,16 @@ import { BindPanel } from "@/components/bind-panel";
 import { Shell } from "@/components/shell";
 import { readSession } from "@/lib/actor";
 import { listIdentities } from "@/lib/domain";
+import { messageFromSearch } from "@/lib/form";
 
-export default async function ConnectPage() {
+export default async function ConnectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; seconds?: string }>;
+}) {
   const t = await getTranslations("connect");
+  const params = await searchParams;
+  const errorMessage = await messageFromSearch(params);
   const session = await readSession();
   const identities = listIdentities().map((item) => ({
     ownerId: item.ownerId,
@@ -19,7 +26,7 @@ export default async function ConnectPage() {
   return (
     <Shell title={t("title")}>
       <p className="mt-4 text-[15px] leading-7">{t("lead")}</p>
-      <BindPanel identities={identities} currentOwnerId={current} />
+      <BindPanel identities={identities} currentOwnerId={current} errorMessage={errorMessage} />
     </Shell>
   );
 }

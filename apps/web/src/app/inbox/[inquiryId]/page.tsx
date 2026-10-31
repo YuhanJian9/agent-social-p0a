@@ -4,17 +4,21 @@ import { ConsentForm } from "@/components/consent-form";
 import { Shell } from "@/components/shell";
 import { readSession } from "@/lib/actor";
 import { getInquiryForViewer } from "@/lib/domain";
+import { messageFromSearch } from "@/lib/form";
 
 export default async function InquiryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ inquiryId: string }>;
+  searchParams: Promise<{ error?: string; seconds?: string }>;
 }) {
   const session = await readSession();
   if (!session || session.agent.revokedAt) redirect("/connect");
   const { inquiryId } = await params;
   const item = getInquiryForViewer(inquiryId, session.agent.id);
   if (!item) notFound();
+  const errorMessage = await messageFromSearch(await searchParams);
   const t = await getTranslations("consent");
   const who = `${item.counterpartAgentName} · ${item.counterpartOwnerName}`;
 
@@ -36,7 +40,12 @@ export default async function InquiryPage({
       </dl>
 
       {item.role === "askee" && item.status === "pending" && item.summaryDraft ? (
-        <ConsentForm consentId={item.consentId} draft={item.summaryDraft} />
+        <ConsentForm
+          consentId={item.consentId}
+          inquiryId={item.inquiryId}
+          draft={item.summaryDraft}
+          errorMessage={errorMessage}
+        />
       ) : null}
 
       {item.role === "asker" && item.status === "pending" ? (

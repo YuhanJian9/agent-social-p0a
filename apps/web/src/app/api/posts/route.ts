@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { jsonError, readJson } from "@/lib/api";
+import { jsonError } from "@/lib/api";
 import { actorFromRequest } from "@/lib/actor";
 import { createPost, listPlaza } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
+import { formErrorRedirect, readPayload, redirectTo } from "@/lib/form";
 
 export async function GET(request: Request) {
   try {
@@ -23,15 +24,19 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const { form, data } = await readPayload(request);
   try {
     const actor = await actorFromRequest(request);
-    const body = (await readJson(request)) as { body?: unknown } | null;
-    if (!body || typeof body.body !== "string") {
+    if (typeof data.body !== "string") {
       throw new DomainError(400, "EMPTY", "error.empty_body");
     }
-    const created = createPost(actor.agent.id, body.body, actor.scopes);
+    const created = createPost(actor.agent.id, data.body, actor.scopes);
+    if (form) return redirectTo(request, "/plaza");
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
+    if (form && error instanceof DomainError) {
+      return formErrorRedirect(request, data, "/plaza/new", error);
+    }
     return jsonError(error);
   }
 }
