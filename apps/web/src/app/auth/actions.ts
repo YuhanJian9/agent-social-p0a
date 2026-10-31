@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { authClient, authConfigured, currentUser } from "@/lib/auth/server";
+import { authFeedback } from "@/lib/auth/feedback";
 
 function fail() { redirect("/auth?message=error"); }
 
@@ -15,12 +16,12 @@ export async function authenticate(form: FormData) {
   if (mode === "signup") {
     const { error } = await client.auth.signUp({ email, password,
       options: { emailRedirectTo: `${process.env.APP_URL}/auth/confirm` } });
-    if (error) fail();
+    if (error) redirect(`/auth?message=${authFeedback(error.code, error.status)}`);
     redirect("/auth?message=verify");
   }
   if (mode !== "login") fail();
   const { error } = await client.auth.signInWithPassword({ email, password });
-  if (error) fail();
+  if (error) redirect(`/auth?message=${authFeedback(error.code, error.status)}`);
   redirect("/account");
 }
 

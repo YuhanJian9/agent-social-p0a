@@ -40,6 +40,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Test authentication feedback
+        run: pnpm --filter @agent-social/stub-agent exec tsx --test ../../apps/web/src/lib/auth/feedback.test.ts
+
       - name: Build
         run: pnpm build
 
