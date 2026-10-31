@@ -13,10 +13,13 @@ Completed against the hosted staging project:
 - Local `.env.local` configured with project URL and publishable key; Git ignores the file. No service-role key used.
 - Local auth page returns HTTP 200; legacy bind and agent event endpoints return HTTP 404 in configured mode.
 
-Pending user-assisted acceptance:
+Completed user-assisted browser acceptance in Safari:
 
-- Real email signup and delivery.
-- Confirmation callback in the registration browser.
-- Login, profile creation/update/persistence, logout, and subsequent login.
+- Hosted Auth recorded successful signup and confirmation email delivery. Attempting sign-in before confirmation returned `email_not_confirmed`; repeated signup returned a mail-send rate limit. Both now have explicit UI feedback and regression tests.
+- The user completed email confirmation and sign-in; the server-verified `/account` page rendered successfully.
+- Saved the temporary display name `Yuhan · M1 verification`; the page returned `message=saved` and the value survived a full refresh.
+- Restored the original display name `Yuhan` and saved it successfully.
+- Signed out, then directly opened `/account`; the browser returned to `/auth` without displaying private profile data.
+- The user entered their password and signed in again. `/account` rendered the same profile with display name `Yuhan` and locale `zh-Hans`.
 
-The hosted database checks do not substitute for the pending browser/email checks. Keep M1 in draft until the latter are completed.
+M1 registration, sign-in, owner profile persistence, sign-out, and subsequent sign-in acceptance is complete. Password recovery, account deletion, production SMTP, and the production social-data migration remain later work before public launch. These results do not claim that the entire product is ready for public registration.
