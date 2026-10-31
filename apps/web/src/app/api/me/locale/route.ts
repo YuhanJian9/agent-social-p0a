@@ -4,7 +4,7 @@ import { readSession } from "@/lib/actor";
 import { LOCALE_COOKIE } from "@/lib/constants";
 import { setOwnerLocale } from "@/lib/domain";
 import { DomainError } from "@/lib/errors";
-import { formErrorRedirect, readPayload, redirectTo, safePath, withoutStatus } from "@/lib/form";
+import { formErrorRedirect, readPayload, redirectTo, safePath } from "@/lib/form";
 import { isLocale } from "@/i18n/locale";
 
 export async function POST(request: Request) {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       setOwnerLocale(session.owner.id, data.locale);
     }
     const response = form
-      ? redirectTo(request, withoutStatus(safePath(returnPath(request, data), "/plaza")))
+      ? redirectTo(request, safePath(returnPath(request, data), "/plaza"))
       : NextResponse.json({ locale: data.locale });
     response.cookies.set(LOCALE_COOKIE, data.locale, {
       sameSite: "lax",

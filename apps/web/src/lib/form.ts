@@ -65,14 +65,6 @@ export function redirectTo(request: Request, path: string) {
   return NextResponse.redirect(new URL(path, origin), 303);
 }
 
-export function withoutStatus(path: string) {
-  const url = new URL(path, "http://local");
-  url.searchParams.delete("error");
-  url.searchParams.delete("seconds");
-  const query = url.searchParams.toString();
-  return query ? `${url.pathname}?${query}` : url.pathname;
-}
-
 export function formErrorRedirect(
   request: Request,
   data: Record<string, unknown>,
