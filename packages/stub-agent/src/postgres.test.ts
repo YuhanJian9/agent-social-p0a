@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { strict as assert } from "node:assert";
 import { before, after, test } from "node:test";
 import pg from "pg";
+import { createHash } from "node:crypto";
+import { generateAgentToken } from "../../../apps/web/src/lib/agents/token.js";
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (connectionString && !["localhost","127.0.0.1"].includes(new URL(connectionString).hostname)) {
@@ -32,7 +34,7 @@ before(async () => {
     $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,anon;
     grant execute on function auth.uid() to authenticated,anon;`);
-  for (const name of ["202610310001_owner_profiles.sql", "202610310002_social.sql"]) {
+  for (const name of ["202610310001_owner_profiles.sql", "202610310002_social.sql", "202610310003_agent_access.sql"]) {
     await db.exec(await readFile(new URL(`../../../supabase/migrations/${name}`, import.meta.url), "utf8"));
   }
 });
@@ -160,6 +162,81 @@ test("rate limit and revoked agent rejection leave no partial rows", async () =>
 test("hosted staging smoke script runs unchanged and rolls back fixtures", async () => {
   await db.exec(await readFile(new URL("../../../supabase/tests/social-staging.sql",import.meta.url),"utf8"));
   assert.equal(await value("select count(*)::int from public.agents"),0);
+});
+
+test("server token generation uses 256 random bits and separates raw secret from stored hash",()=>{
+  const first=generateAgentToken(),second=generateAgentToken();
+  assert.match(first.token,/^as_[A-Za-z0-9_-]{43}$/);
+  assert.equal(Buffer.from(first.token.slice(3),'base64url').length,32);
+  assert.equal(first.hash,createHash('sha256').update(first.token).digest('hex'));
+  assert.equal(first.prefix,first.token.slice(0,11));
+  assert.notEqual(first.token,second.token);
+});
+
+test("hosted token lifecycle smoke script rolls back synthetic fixtures",async()=>{
+  await db.exec(await readFile(new URL("../../../supabase/tests/agent-staging.sql",import.meta.url),"utf8"));
+  assert.equal(await value("select count(*)::int from public.agent_tokens"),0);
+});
+
+const rawToken = `as_${"A".repeat(43)}`;
+const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+test("owner registration, one-way token storage, rotation, revocation and scopes",async()=>{
+  await fixture();
+  try {
+    await as(alice);
+    const agent=await value("select public.register_agent('Real agent',$1,$2,array['plaza.read','events.read'])",[tokenHash,rawToken.slice(0,11)]);
+    assert.equal(await value("select prefix from public.agent_tokens"),rawToken.slice(0,11));
+    await probe("select token_hash from public.agent_tokens",/permission denied/);
+    await as(bob);
+    assert.equal(await value("select count(*)::int from public.agent_tokens"),0);
+    await probe("select public.rotate_agent_token($1,$2,$3,array['plaza.read'])",/FORBIDDEN/,[agent,tokenHash,rawToken.slice(0,11)]);
+    await db.exec("reset role; set local role anon");
+    assert.deepEqual(await value("select public.agent_request($1,'feed')",[rawToken]),[]);
+    await probe("select public.agent_request($1,'post','{\"body\":\"forbidden\"}')",/SCOPE/,[rawToken]);
+    await probe("select public.agent_request($1,'decide')",/AGENT_CANNOT_DECIDE/,[rawToken]);
+    await probe("select public.social_decide_consent(gen_random_uuid(),true,'forged')",/permission denied/);
+    await probe("select public.agent_request('invalid','feed')",/UNAUTHORIZED/);
+    await as(alice);
+    const second=`as_${"B".repeat(43)}`;
+    await db.query("select public.rotate_agent_token($1,$2,$3,array['plaza.read','plaza.post','manifest.write'])",[agent,createHash('sha256').update(second).digest('hex'),second.slice(0,11)]);
+    await db.exec("reset role; set local role anon");
+    await probe("select public.agent_request($1,'feed')",/UNAUTHORIZED/,[rawToken]);
+    await value("select public.agent_request($1,'post','{\"body\":\"Real token post\"}')",[second]);
+    const manifest=await value("select public.agent_request($1,'manifest','{\"protocol_version\":\"p0a.1\",\"transport\":\"longpoll\"}')",[second]) as Record<string,unknown>;
+    assert.equal(manifest.agentId,agent);
+    await as(alice);
+    const token=await value("select id from public.agent_tokens where revoked_at is null");
+    await value("select public.revoke_agent_token($1)",[token]);
+    await db.exec("reset role; set local role anon");
+    await probe("select public.agent_request($1,'feed')",/UNAUTHORIZED/,[second]);
+    await db.exec("reset role");
+    assert.equal(await value("select count(*)::int from public.agent_tokens where token_hash=$1",[rawToken]),0);
+  } finally{await db.exec("rollback");}
+});
+
+test("agent tokens deliver approved events but never pending drafts or other agents' events",async()=>{
+  await fixture();
+  try{
+    await db.query("insert into public.agent_tokens(agent_id,token_hash,prefix,scopes) values($1,$2,$3,array['plaza.post','inquiry.create','inquiry.read','transfer.read','events.read'])",[cole,tokenHash,rawToken.slice(0,11)]);
+    await as(alice);
+    const post=await value("select public.social_create_post($1,'Owner post')",[ning]);
+    await db.exec("reset role; set local role anon");
+    const inquiry=await value("select public.agent_request($1,'inquire',jsonb_build_object('postId',$2::text,'question','A question'))",[rawToken,post]) as {inquiryId:string};
+    const before=await value("select public.agent_request($1,'inquiries')",[rawToken]);
+    assert.ok(!JSON.stringify(before).includes('summary_draft'));
+    assert.deepEqual(await value("select public.agent_request($1,'transfers')",[rawToken]),[]);
+    assert.deepEqual(await value("select public.agent_request($1,'events')",[rawToken]),[]);
+    await as(alice);
+    const consent=await value("select id from public.consents where inquiry_id=$1",[inquiry.inquiryId]);
+    await value("select public.social_decide_consent($1,true,'Approved response')",[consent]);
+    await db.exec("reset role; set local role anon");
+    const events=await value("select public.agent_request($1,'events')",[rawToken]) as Array<{id:number;type:string;payload:Record<string,unknown>}>;
+    assert.equal(events.length,1);assert.equal(events[0].type,'transfer.delivered');
+    assert.equal(events[0].payload.body,'Approved response');
+    assert.deepEqual(await value("select public.agent_request($1,'events',jsonb_build_object('cursor',$2::bigint))",[rawToken,events[0].id]),[]);
+    const transfers=await value("select public.agent_request($1,'transfers')",[rawToken]) as Array<{body:string}>;
+    assert.equal(transfers[0].body,'Approved response');
+  }finally{await db.exec("rollback");}
 });
 
 test("native PostgreSQL serializes competing rate checks and consent decisions", {skip:!native}, async () => {

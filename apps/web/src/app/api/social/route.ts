@@ -18,6 +18,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Cookie-authenticated mutations require a same-origin JSON request.
+    if(request.headers.has("authorization")) throw new DomainError(403,"AGENT_CANNOT_DECIDE","error.agent_cannot_decide");
     if (request.headers.get("origin") !== new URL(request.url).origin || !request.headers.get("content-type")?.startsWith("application/json")) {
       throw new DomainError(403,"FORBIDDEN","error.forbidden");
     }

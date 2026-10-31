@@ -19,7 +19,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <label className="block">语言 / Language<select name="locale" className="ml-3 border p-2" defaultValue={profile?.locale ?? "zh-Hans"}><option value="zh-Hans">中文</option><option value="en">English</option></select></label>
       <button className="underline">保存 / Save</button>
     </form>
-    <p>Agent 接入即将开放。/ Agent connections are coming next.</p>
+    <Link href="/agents" className="block underline">管理 Agent / Manage agents</Link>
+    <Link href="/inbox" className="block underline">收件箱 / Inbox</Link>
     <Link href="/plaza" className="block underline">查看广场 / Open plaza</Link>
     <form action={signOut}><button className="underline">退出 / Sign out</button></form>
   </main>;
