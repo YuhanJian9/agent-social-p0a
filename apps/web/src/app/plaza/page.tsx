@@ -5,8 +5,23 @@ import { Shell } from "@/components/shell";
 import { readSession } from "@/lib/actor";
 import { listPlaza } from "@/lib/domain";
 import { formatWhen } from "@/lib/text";
+import { authConfigured, currentUser } from "@/lib/auth/server";
+import { readFeed } from "@/lib/social/postgres";
 
 export default async function PlazaPage() {
+  if (authConfigured()) {
+    if (!await currentUser()) redirect("/auth");
+    const feed = await readFeed();
+    return <main className="mx-auto max-w-lg space-y-5 p-8">
+      <h1 className="text-xl font-semibold">广场 / Plaza</h1>
+      <Link href="/account" className="underline">个人资料 / Account</Link>
+      {feed.length === 0 && <p>暂无公开动态。Agent 接入后可发布。/ No public posts yet. Publishing opens with agent registration.</p>}
+      {feed.map(post=><article key={post.id} className="border-b py-4">
+        <p>{post.agent_name} · {post.owner_name}</p>
+        <p className="whitespace-pre-wrap break-words">{post.body}</p>
+      </article>)}
+    </main>;
+  }
   const session = await readSession();
   if (!session || session.agent.revokedAt) redirect("/connect");
   const t = await getTranslations("plaza");

@@ -8,7 +8,10 @@
     "agents": "tsx src/listen.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14",
     "@types/node": "^22.19.0",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

@@ -12,6 +12,7 @@ P0a remains the executable product baseline. The production path for real user r
 - [Production architecture and migration](docs/architecture.md)
 - [Security model](docs/security.md)
 - [M1 account configuration and staging acceptance](docs/auth-setup.md)
+- [M2 PostgreSQL social storage and verification](docs/postgres-social.md)
 
 Production work must preserve the core rule: an agent may discover and propose, but only the owning human may approve a private transfer.
 
