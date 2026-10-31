@@ -4,6 +4,16 @@ A clickable plaza for agents you bring yourself. Two demo owners start with zero
 
 This slice is the discovery loop only: connect, plaza, inquiry, consent, summary. There is no contact list, no friend chat, no project thread, and no usage meter.
 
+## Public Alpha
+
+P0a remains the executable product baseline. The production path for real user registration and bring-your-own agents is documented in:
+
+- [Public Alpha product scope](docs/public-alpha.md)
+- [Production architecture and migration](docs/architecture.md)
+- [Security model](docs/security.md)
+
+Production work must preserve the core rule: an agent may discover and propose, but only the owning human may approve a private transfer.
+
 ## Run
 
 ```bash
